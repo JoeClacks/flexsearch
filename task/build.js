@@ -231,9 +231,7 @@ if(release === "lang"){
                     else if(self["FlexSearch"]) self["FlexSearch"]["Language"]['${lang}'] = lang;
                 `);
 
-                const executable = process.platform === "win32"  ? path.resolve(__dirname + "/../node_modules/google-closure-compiler-windows/compiler.exe") :
-                                   process.platform === "darwin" ? path.resolve(__dirname + "/../node_modules/google-closure-compiler-osx/compiler") :
-                                                                   "java -jar node_modules/google-closure-compiler-java/compiler.jar";
+                const executable = closure_compiler();
 
                 spawn(executable, [parameter + " --js='tmp/lang.js' --js='tmp/lang/*.js' --js='tmp/type.js' --js_output_file='dist/lang/" + lang + ".min.js' && exit 0"], function(){
 
@@ -377,9 +375,7 @@ else (async function(){
     fs.writeFileSync("tmp/worker/handler.js", content);
 
     const filename = "dist/flexsearch." + (release + (custom ? "." + custom : "")) + (options["DEBUG"] ?  ".debug" : ".min") + ".js";
-    const executable = process.platform === "win32"  ? path.resolve(__dirname + "/../node_modules/google-closure-compiler-windows/compiler.exe") :
-                       process.platform === "darwin" ? path.resolve(__dirname + "/../node_modules/google-closure-compiler-osx/compiler") :
-                                                       "java -jar node_modules/google-closure-compiler-java/compiler.jar";
+    const executable = closure_compiler();
 
     spawn(executable, [parameter + " --js='tmp/**.js' --js='!tmp/**/node.js' --js='!tmp/**/node.mjs' --js_output_file='" + filename + "' && exit 0"], function(){
 
@@ -515,6 +511,34 @@ function hashCode(str) {
         crc = (crc * bit ^ str.charCodeAt(i)) & range;
     }
     return crc.toString(36).substring(0, 5);
+}
+
+// The native compiler package is named per platform *and* architecture:
+// arm64 macOS installs google-closure-compiler-macos, x64 macOS -osx. Picking
+// one by process.platform alone misses on Apple Silicon, and because the build
+// writes its licence header before invoking the compiler, a missing binary
+// leaves that header prepended to the previous artifact and still reports
+// "Build Complete" -- a dist/ that no longer parses. Fail here instead.
+function closure_compiler(){
+
+    const candidates = process.platform === "win32"
+        ? ["google-closure-compiler-windows/compiler.exe"]
+        : process.platform === "darwin"
+            ? ["google-closure-compiler-macos/compiler", "google-closure-compiler-osx/compiler"]
+            : ["google-closure-compiler-linux/compiler"];
+
+    for(const candidate of candidates){
+        const resolved = path.resolve(__dirname + "/../node_modules/" + candidate);
+        if(fs.existsSync(resolved)) return resolved;
+    }
+
+    const jar = path.resolve(__dirname + "/../node_modules/google-closure-compiler-java/compiler.jar");
+    if(fs.existsSync(jar)) return "java -jar " + JSON.stringify(jar);
+
+    throw new Error(
+        "No Closure Compiler found. Looked for " + candidates.join(", ") +
+        " and google-closure-compiler-java/compiler.jar under node_modules."
+    );
 }
 
 function spawn(prompt, args, callback){
