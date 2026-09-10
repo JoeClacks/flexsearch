@@ -49,6 +49,17 @@ export function intersect(arrays, resolution, limit, offset, suggest, boost, res
     const score_max = create_object();
     const score_sum = create_object();
 
+    // Early-exit budget. A document reaches the all-terms bucket when its last
+    // term is found, so at y === max(res); once `need` of them exist, every
+    // document still unseen has a strictly higher max(res) and cannot displace
+    // any of them. Scanning to the end of the current `y` is what makes that
+    // safe -- stopping mid-pass would cut a max(res) group in half and let
+    // traversal order decide which half survived.
+    const need = (!SUPPORT_RESOLVER || resolve) && !suggest && limit
+        ? limit + (offset || 0)
+        : 0;
+    let found = 0;
+
     for(let y = 0, ids, id, res_arr, tmp; y < resolution; y++){
 
         for(let x = 0; x < length; x++){
@@ -84,16 +95,17 @@ export function intersect(arrays, resolution, limit, offset, suggest, boost, res
 
                     tmp.push(id);
 
-                    // The early return that stood here stopped at the first
-                    // `limit` full matches. Those are the lowest max(res), so
-                    // it was right about the head of the list -- but ties that
-                    // straddle the cut-off were kept or dropped by traversal
-                    // order, which is what made membership depend on the order
-                    // the query terms were passed. The whole bucket is scored
-                    // and sorted below instead.
+                    if(need && (count === length - 1)){
+                        found++;
+                    }
                     // todo break early on suggest: true
                 }
             }
+        }
+
+        // End of the pass, not the middle of it -- see `need` above.
+        if(need && (found >= need)){
+            break;
         }
     }
 
