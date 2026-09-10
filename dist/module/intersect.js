@@ -36,6 +36,12 @@ export function intersect(arrays, resolution, limit, offset, suggest, boost, res
 
     check = create_object();
 
+    const score_max = create_object(),
+          score_sum = create_object(),
+          need = resolve && !suggest && limit ? limit + (offset || 0) : 0;
+
+    let found = 0;
+
     for (let y = 0, ids, id, res_arr, tmp; y < resolution; y++) {
 
         for (let x = 0; x < length; x++) {
@@ -47,6 +53,9 @@ export function intersect(arrays, resolution, limit, offset, suggest, boost, res
                 for (let z = 0; z < ids.length; z++) {
 
                     id = ids[z];
+
+                    score_max[id] = y;
+                    score_sum[id] = (score_sum[id] || 0) + y;
 
                     if (count = check[id]) {
                         check[id]++;
@@ -65,15 +74,15 @@ export function intersect(arrays, resolution, limit, offset, suggest, boost, res
 
                     tmp.push(id);
 
-                    if (resolve) {
-                        if (limit && count === length - 1) {
-                            if (tmp.length - offset === limit) {
-                                return offset ? tmp.slice(offset) : tmp;
-                            }
-                        }
+                    if (need && count === length - 1) {
+                        found++;
                     }
                 }
             }
+        }
+
+        if (need && found >= need) {
+            break;
         }
     }
 
@@ -88,6 +97,13 @@ export function intersect(arrays, resolution, limit, offset, suggest, boost, res
             }
 
             result = /** @type {SearchResults|IntermediateSearchResults} */result[result_len - 1];
+
+            if (resolve) {
+
+                result.sort(function (a, b) {
+                    return score_max[a] - score_max[b] || score_sum[a] - score_sum[b] || (a < b ? -1 : a > b ? 1 : 0);
+                });
+            }
 
             if (limit || offset) {
                 if (resolve) {
