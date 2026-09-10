@@ -452,16 +452,16 @@ SqliteDB.prototype.search = function(flexsearch, query, limit = 100, offset = 0,
                        ${ enrich ? ", doc" : "" }
                 FROM (
                     SELECT id, count(*) as count,
-                           ${ suggest ? "SUM" : "SUM" /*"MIN"*/ }(res) as res
+                           MAX(res) as res, SUM(res) as res_sum
                     FROM main.ctx${ this.field }
                     WHERE ${ stmt }
                     GROUP BY id
                 ) as r
                 ${ enrich ? `
                     LEFT JOIN main.reg ON main.reg.id = r.id
-                ` : "" }  
+                ` : "" }
                 ${ suggest ? "" : "WHERE count = " + (query.length - 1) }
-                ORDER BY ${ suggest ? "count DESC, res" : "res" }
+                ORDER BY ${ suggest ? "count DESC, res, res_sum, r.id" : "res, res_sum, r.id" }
                 ${ limit ? "LIMIT " + limit : "" }
                 ${ offset ? "OFFSET " + offset : "" }
             `,
@@ -522,16 +522,16 @@ SqliteDB.prototype.search = function(flexsearch, query, limit = 100, offset = 0,
                        ${ enrich ? ", doc" : "" }
                 FROM (
                     SELECT id, count(*) as count,
-                           ${ suggest ? "SUM" : "SUM" /*"MIN"*/ }(res) as res
+                           MAX(res) as res, SUM(res) as res_sum
                     FROM main.map${ this.field }
                     WHERE ${ stmt }
                     GROUP BY id
                 ) as r
                 ${ enrich ? `
                     LEFT JOIN main.reg ON main.reg.id = r.id
-                ` : "" }  
+                ` : "" }
                 ${ suggest ? "" : "WHERE count = " + query_length }
-                ORDER BY ${ suggest ? "count DESC, res" : "res" }
+                ORDER BY ${ suggest ? "count DESC, res, res_sum, r.id" : "res, res_sum, r.id" }
                 ${ limit ? "LIMIT " + limit : "" }
                 ${ offset ? "OFFSET " + offset : "" }
             `,
