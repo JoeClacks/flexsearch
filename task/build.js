@@ -31,7 +31,18 @@ let supported_args = {
         "module",
         "bundle.module",
         "compact.module",
-        "light.module"
+        "light.module",
+        // A build defined entirely by the SUPPORT_* flags on the command line.
+        // `npm run build:custom` has always passed RELEASE=custom, but the
+        // value was not accepted here, so the parser dropped it and the
+        // release name resolved to undefined.
+        "custom",
+        "custom.module",
+        // A stably-named trimmed build. "custom" releases are content-hashed
+        // into their filename so several flag sets can coexist, which is right
+        // for one-offs but leaves no fixed path for the exports map to name.
+        "slim",
+        "slim.module"
     ],
     "POLYFILL": ["true", "false"],
     "PROFILER": ["true", "false"],
@@ -92,6 +103,16 @@ let options = (function(argv){
     return args;
 
 })(process.argv);
+
+if(!options["RELEASE"]){
+    // An unrecognised value is dropped silently by the parser above, so
+    // without this the next line reports `undefined.toLowerCase()` and names
+    // neither the flag nor the value that was wrong.
+    throw new Error(
+        "No usable RELEASE. Pass one of: " + supported_args["RELEASE"].join(", ") +
+        " (given: " + (process.argv.slice(2).find(a => /^RELEASE=/i.test(a)) || "nothing") + ")"
+    );
+}
 
 let release = options["RELEASE"].toLowerCase();
 const light_version = (release === "light") || (process.argv[2] === "--light");
@@ -397,10 +418,9 @@ else (async function(){
         build = preserve.substring(0, preserve.indexOf('*/') + 2) + "\n" + build;
 
 
-        if(release === "bundle.module" ||
-           release === "light.module" ||
-           release === "compact.module" ||
-           release === "custom.module"){
+        // Any *.module release, rather than a list that a new variant has to
+        // be added to in a second place.
+        if(release.endsWith(".module")){
 
             // export default {
             //     Index: O,
@@ -414,6 +434,17 @@ else (async function(){
             // };
 
             const pos_start = build.indexOf("window.FlexSearch");
+
+            if(pos_start < 0){
+                // src/bundle.js took its UMD branch, which means this release
+                // is missing from the list there. Splicing from -1 produces a
+                // file that does not parse, and nothing downstream notices.
+                throw new Error(
+                    "Release '" + release + "' produced no `window.FlexSearch` object to export. " +
+                    "Add it to the RELEASE checks in src/bundle.js."
+                );
+            }
+
             const pos_end = build.indexOf("};", pos_start) + 2;
 
             let part = build.substring(build.indexOf("{", pos_start) + 1, pos_end - 2);
@@ -475,8 +506,14 @@ else (async function(){
         fs.existsSync("dist/node/") || fs.mkdirSync("dist/node/");
         fs.copyFileSync("src/worker/node.js", "dist/node/node.js");
         fs.copyFileSync("src/worker/node.mjs", "dist/node/node.mjs");
-        fs.existsSync("dist/flexsearch.bundle.module.min.js") && fs.copyFileSync("dist/flexsearch.bundle.module.min.js", "dist/flexsearch.bundle.module.min.mjs");
-        fs.existsSync("dist/flexsearch.bundle.module.debug.js") && fs.copyFileSync("dist/flexsearch.bundle.module.debug.js", "dist/flexsearch.bundle.module.debug.mjs");
+        // Every *.module.* release needs the .mjs sibling, not just the bundle
+        // one: the package has no "type": "module", so Node treats a .js file
+        // as CommonJS, fails to parse the ESM inside it, and only recovers by
+        // reparsing -- with a warning, and after the work. This used to name
+        // bundle.module twice, which is why compact and light shipped .js only.
+        if(/\.module\.(min|debug)\.js$/.test(filename)){
+            fs.copyFileSync(filename, filename.replace(/\.js$/, ".mjs"));
+        }
 
         console.log("Saved to " + filename);
         console.log("Build Complete.");

@@ -345,10 +345,16 @@ const FlexSearch = {
 // Export as library (Bundle)
 // --------------------------------
 
+// Must stay in step with task/build.js, which rewrites the FlexSearch object
+// below into `export const` declarations for every *.module release. A release
+// missing from this list takes the UMD branch instead, leaving no object
+// literal for that rewrite to find -- it then splices from index -1 and emits
+// a file that does not parse. Add a *.module release here and there together.
 if(RELEASE !== "bundle.module" &&
    RELEASE !== "light.module" &&
    RELEASE !== "compact.module" &&
-   RELEASE !== "custom.module"){
+   RELEASE !== "custom.module" &&
+   RELEASE !== "slim.module"){
 
     // Legacy Browser: this refers to window
     // ESM Browser: self refers to window

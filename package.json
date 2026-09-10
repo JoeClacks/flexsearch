@@ -36,6 +36,10 @@
       "import": "./dist/flexsearch.bundle.module.min.mjs",
       "require": "./dist/flexsearch.bundle.min.js"
     },
+    "./slim": {
+      "types": "./index.d.ts",
+      "import": "./dist/flexsearch.slim.module.min.mjs"
+    },
     "./lang/*": {
       "import": "./dist/module/lang/*.js",
       "require": "./dist/lang/*.min.js"
@@ -91,7 +95,8 @@
     "test:keystore": "set NODE_OPTIONS=--max-old-space-size=16000 && c8 -c test/.c8rc.json mocha test/keystore.js --exit",
     "test:db": "c8 -c test/.c8rc.json mocha test/persistent.*.js --exit",
     "test:all": "npx mocha test/*.js --exit module/bundle && npx mocha test/*.js --exit module-debug/bundle && npx mocha test/*.js --exit module-min/bundle && npx mocha test/*.js --exit flexsearch.bundle.debug && npx mocha test/*.js --exit flexsearch.bundle.min && npx mocha test/*.js --exit flexsearch.bundle.module.debug && npx mocha test/*.js --exit flexsearch.bundle.module.min && npx mocha test/*.js --exit flexsearch.compact.debug && npx mocha test/*.js --exit flexsearch.compact.min && npx mocha test/*.js --exit flexsearch.compact.module.debug && npx mocha test/*.js --exit flexsearch.compact.module.min && npx mocha test/*.js --exit flexsearch.es5.debug && npx mocha test/*.js --exit flexsearch.es5.min && npx mocha test/*.js --exit flexsearch.light.debug && npx mocha test/*.js --exit flexsearch.light.min && npx mocha test/*.js --exit flexsearch.light.module.debug && npx mocha test/*.js --exit flexsearch.light.module.min",
-    "release": "npm version --no-git-tag-version patch && npm run build:all && npm run test:all"
+    "release": "npm version --no-git-tag-version patch && npm run build:all && npm run test:all",
+    "build:module:slim": "node task/build RELEASE=slim.module DEBUG=false PROFILER=false POLYFILL=false SUPPORT_DOCUMENT=true SUPPORT_PERSISTENT=true SUPPORT_ENCODER=true SUPPORT_CHARSET=true SUPPORT_STORE=true SUPPORT_ASYNC=true SUPPORT_WORKER=false SUPPORT_CACHE=false SUPPORT_SERIALIZE=false SUPPORT_TAGS=false SUPPORT_KEYSTORE=false SUPPORT_COMPRESSION=false SUPPORT_RESOLVER=false SUPPORT_HIGHLIGHTING=false SUPPORT_SUGGESTION=false"
   },
   "files": [
     "dist/**",
