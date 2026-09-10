@@ -103,6 +103,7 @@
     "LICENSE"
   ],
   "devDependencies": {
+    "@libsql/client": "^0.18.0",
     "babel-cli": "^6.26.0",
     "babel-plugin-conditional-compile": "^0.0.5",
     "babel-plugin-minify-constant-folding": "^0.5.0",
