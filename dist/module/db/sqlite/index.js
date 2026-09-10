@@ -1,8 +1,19 @@
 
-import sqlite3 from "sqlite3";
 import path from "path";
 import StorageInterface from "../interface.js";
 import { concat, toArray } from "../../common.js";
+
+let sqlite3_module = null;
+
+/** @return {!Promise<!Object>} */
+function load_sqlite3() {
+    return sqlite3_module || (sqlite3_module = import("sqlite3").then(function (m) {
+        return m.default || m;
+    }, function (e) {
+        sqlite3_module = null;
+        throw new Error("FlexSearch: no SQLite driver. Either install `sqlite3`, or pass a handle as `db` in the config -- see ./libsql/ for a @libsql/client wrapper. (" + e.message + ")");
+    }));
+}
 
 const VERSION = 1,
       MAXIMUM_QUERY_VARS = 16000,
@@ -88,7 +99,9 @@ SqliteDB.prototype.open = async function () {
                 }
             }
 
-            this.db = Index[this.id] = new sqlite3.Database(filepath);
+            const sqlite3 = await load_sqlite3();
+
+            this.db = Index[this.id] || (Index[this.id] = new sqlite3.Database(filepath));
         }
     }
 

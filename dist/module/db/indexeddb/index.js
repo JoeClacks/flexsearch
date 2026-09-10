@@ -1,9 +1,33 @@
-const VERSION = 1,
-      IndexedDB = "undefined" != typeof window && (window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB),
-      IDBTransaction = "undefined" != typeof window && (window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction),
-      IDBKeyRange = "undefined" != typeof window && (window.IDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange),
-      fields = ["map", "ctx", "tag", "reg", "cfg"];
 
+
+const VERSION = 1;
+
+/**
+ * Resolved on use rather than at module load, and from globalThis rather than
+ * window. Two reasons for each half: a Worker has no `window` at all (its global
+ * is `self`), so capturing at load time gave `false` forever and made the
+ * adapter unusable there; and a module evaluated during SSR or prerender -- when
+ * no implementation exists yet -- would have frozen that `false` in place even
+ * though the same module lives on into the browser.
+ *
+ * IDBTransaction and IDBKeyRange were captured here too and referenced nowhere;
+ * they are gone rather than converted.
+ *
+ * @return {!IDBFactory}
+ */
+function idb() {
+    const g = "undefined" != typeof globalThis ? globalThis : self,
+          impl = g.indexedDB || g.mozIndexedDB || g.webkitIndexedDB || g.msIndexedDB;
+
+
+    if (!impl) {
+        throw new Error("FlexSearch: no IndexedDB implementation on globalThis. In Node, install one (e.g. fake-indexeddb) before mounting the adapter.");
+    }
+
+    return impl;
+}
+
+const fields = ["map", "ctx", "tag", "reg", "cfg"];
 import StorageInterface from "../interface.js";
 import { create_object, toArray } from "../../common.js";
 
@@ -58,12 +82,12 @@ IdxDB.prototype.open = function () {
     if (this.db) return this.db;
     let self = this;
 
-    navigator.storage && navigator.storage.persist && navigator.storage.persist();
+    "undefined" != typeof navigator && navigator.storage && navigator.storage.persist && navigator.storage.persist();
 
     Index[self.id] || (Index[self.id] = []);
     Index[self.id].push(self.field);
 
-    const req = IndexedDB.open(self.id, VERSION);
+    const req = idb().open(self.id, VERSION);
 
     /** @this {IDBOpenDBRequest} */
     req.onupgradeneeded = function () {
@@ -97,7 +121,7 @@ IdxDB.prototype.close = function () {
  * @return {!Promise<undefined>}
  */
 IdxDB.prototype.destroy = function () {
-    const req = IndexedDB.deleteDatabase(this.id);
+    const req = idb().deleteDatabase(this.id);
     return promisfy(req);
 };
 

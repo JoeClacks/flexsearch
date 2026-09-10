@@ -50,6 +50,10 @@ fs.existsSync("dist") || fs.mkdirSync("dist");
         "db/postgres",
         "db/redis",
         "db/sqlite",
+        // Nested one level deeper than the rest: the "./db/*" export pattern
+        // maps to db/<*>/index.js, so a driver wrapper has to live in its own
+        // directory to be importable as flexsearch/db/sqlite/libsql.
+        "db/sqlite/libsql",
         "document",
         "index",
         "resolve",
